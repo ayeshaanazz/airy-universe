@@ -1,28 +1,31 @@
 from flask import Flask, render_template, request, jsonify
 import requests
 import joblib
-import os
 
 app = Flask(__name__)
 
+# 🌍 OpenWeather API
 API_KEY = "18aad610cd7aaf807c3e6f370dcde421"
 
-# Load model
+# Load ML model
 model = joblib.load("aqi_model.pkl")
 
 
+# 📍 Get coordinates
 def get_coordinates(city):
     url = f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={API_KEY}"
     data = requests.get(url).json()
     return data[0]['lat'], data[0]['lon']
 
 
+# 🌫 Get pollution data
 def get_pollution(lat, lon):
     url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat={lat}&lon={lon}&appid={API_KEY}"
     data = requests.get(url).json()
     return data['list'][0]['components']
 
 
+# 📊 AQI calculation
 def calculate_aqi(pm25):
     if pm25 <= 30:
         return int((pm25 / 30) * 50)
@@ -32,6 +35,7 @@ def calculate_aqi(pm25):
         return int(100 + ((pm25 - 60) / 30) * 100)
 
 
+# 📊 AQI category
 def get_category(aqi):
     if aqi <= 50:
         return "Good 🌿"
@@ -43,6 +47,7 @@ def get_category(aqi):
         return "Poor 😷"
 
 
+# 🎨 Background color
 def get_bg_color(aqi):
     if aqi <= 50:
         return "good"
@@ -54,38 +59,48 @@ def get_bg_color(aqi):
         return "severe"
 
 
-# 🔥 Chatbot route
+# 🤖 FREE SMART CHATBOT
 @app.route("/chat", methods=["POST"])
 def chat():
     user_msg = request.json.get("message", "").lower()
 
     if "aqi" in user_msg:
-        reply = "AQI shows how polluted the air is. Lower is better."
+        reply = "AQI (Air Quality Index) measures air pollution. Lower AQI means cleaner air, higher AQI is harmful."
+    
     elif "health" in user_msg:
-        reply = "High AQI can cause breathing issues. Avoid outdoor exposure."
+        reply = "Poor air quality can cause asthma, lung damage, breathing problems, and heart issues."
+    
+    elif "pollution" in user_msg:
+        reply = "Pollution is caused by vehicles, industries, and burning fuels. Reducing emissions improves air quality."
+    
     elif "environment" in user_msg:
-        reply = "Plant trees, reduce plastic use, and save energy."
+        reply = "Protect the environment by planting trees, reducing plastic use, and conserving energy."
+    
+    elif "trees" in user_msg:
+        reply = "Trees absorb carbon dioxide and release oxygen, improving air quality."
+    
+    elif "animals" in user_msg:
+        reply = "Air pollution harms animals by damaging their lungs and affecting ecosystems."
+    
+    elif "reduce" in user_msg:
+        reply = "Use public transport, save electricity, avoid plastic, and plant trees to reduce pollution."
+    
     else:
-        reply = "Ask about AQI, health, or environment 😊"
+        reply = "Ask me about AQI, pollution, environment, or health 😊"
 
     return jsonify({"response": reply})
 
 
-# 🔥 News API (optional)
+# 📰 Dummy news
 def get_news():
-    try:
-        url = "https://newsapi.org/v2/everything?q=air pollution&apiKey=YOUR_NEWS_API_KEY"
-        data = requests.get(url).json()
-
-        articles = []
-        for item in data.get("articles", [])[:3]:
-            articles.append(item["title"])
-
-        return articles
-    except:
-        return []
+    return [
+        "Delhi AQI rises due to pollution",
+        "Air pollution affecting global health",
+        "Steps to improve environmental sustainability"
+    ]
 
 
+# 🌐 MAIN ROUTE
 @app.route("/", methods=["GET", "POST"])
 def index():
     data = {"bg": "good"}
@@ -101,6 +116,7 @@ def index():
         no2 = pollution['no2']
         co = pollution['co']
 
+        # ML prediction
         prediction = model.predict([[pm25, pm10, no2, co]])
         predicted_aqi = int(prediction[0])
 
@@ -121,5 +137,6 @@ def index():
     return render_template("index.html", data=data)
 
 
+# ▶ RUN APP
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+    app.run(debug=True, port=5001)
