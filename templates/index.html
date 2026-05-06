@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <title>AirAware Pro 🌍</title>
+
+    <meta name="description"
+          content="AirAware Pro by Ayesha Naaz - AI Powered Global AQI Monitoring Platform">
+
+    <meta name="keywords"
+          content="AQI, Air Quality, Pollution, AI, Environment, Ayesha Naaz">
+
+    <meta name="author"
+          content="Ayesha Naaz">
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+    <!-- 🌍 LEAFLET -->
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+</head>
+
+<body class="{{ data.bg if data.bg else 'good' }}">
+
+    <!-- ☁ CLOUDS -->
+    <img src="https://cdn-icons-png.flaticon.com/512/414/414825.png"
+         class="cloud cloud1">
+
+    <img src="https://cdn-icons-png.flaticon.com/512/414/414825.png"
+         class="cloud cloud2">
+
+
+    <div class="container">
+
+        <h1>🌍 AirAware Pro</h1>
+
+        <h3>By Ayesha Naaz 👩‍💻</h3>
+
+        <!-- SEARCH -->
+        <form method="POST">
+
+            <input type="text"
+                   name="city"
+                   placeholder="Enter any city in the world"
+                   required>
+
+            <button type="submit">
+                Check AQI
+            </button>
+
+        </form>
+
+
+        {% if data.city %}
+
+        <div class="result">
+
+            <h2>{{ data.city }}</h2>
+
+            <p><strong>PM2.5:</strong> {{ data.pm25 }}</p>
+
+            <p><strong>Current AQI:</strong> {{ data.aqi }}</p>
+
+            <p><strong>Category:</strong> {{ data.category }}</p>
+
+            <p><strong>Predicted AQI:</strong> {{ data.prediction }}</p>
+
+            <div class="alert">
+                {{ data.alert }}
+            </div>
+
+            <!-- GRAPH -->
+            <h3>📈 AQI Trend</h3>
+
+            <img src="{{ url_for('static', filename='graph.png') }}"
+                 class="graph">
+
+            <!-- NEWS -->
+            <h3>📰 Latest News</h3>
+
+            <ul>
+                {% for n in data.news %}
+                <li>{{ n }}</li>
+                {% endfor %}
+            </ul>
+
+        </div>
+
+        {% endif %}
+
+        <!-- 🌍 MAP -->
+        <h3>🌍 Global AQI Map</h3>
+
+        <div id="map"></div>
+
+    </div>
+
+
+    <!-- 🤖 CHATBOT -->
+    <div class="chatbox">
+
+        <div id="chatlog"></div>
+
+        <input type="text"
+               id="userInput"
+               placeholder="Ask about AQI, health...">
+
+        <button onclick="sendMessage()">
+            Send
+        </button>
+
+    </div>
+
+
+    <!-- 🤖 CHATBOT -->
+    <script>
+
+    async function sendMessage() {
+
+        let input = document.getElementById("userInput").value;
+
+        let chatlog = document.getElementById("chatlog");
+
+        chatlog.innerHTML +=
+            "<p><b>You:</b> " + input + "</p>";
+
+        let response = await fetch("/chat", {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                message: input
+            })
+
+        });
+
+        let data = await response.json();
+
+        chatlog.innerHTML +=
+            "<p><b>Bot:</b> " + data.response + "</p>";
+
+        document.getElementById("userInput").value = "";
+    }
+
+    </script>
+
+
+    <!-- 🌍 GLOBAL MAP -->
+    <script>
+
+    var map = L.map('map').setView([20, 0], 2);
+
+    L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+            attribution: 'AirAware Pro'
+        }
+    ).addTo(map);
+
+
+    // 🌎 WORLD CITIES
+
+    var cities = [
+
+        ["Delhi", 28.6139, 77.2090, "Very Poor 😷"],
+
+        ["New York", 40.7128, -74.0060, "Moderate 😐"],
+
+        ["London", 51.5074, -0.1278, "Good 🌿"],
+
+        ["Tokyo", 35.6762, 139.6503, "Moderate 😐"],
+
+        ["Paris", 48.8566, 2.3522, "Good 🌿"],
+
+        ["Sydney", -33.8688, 151.2093, "Good 🌿"],
+
+        ["Moscow", 55.7558, 37.6173, "Moderate 😐"],
+
+        ["Dubai", 25.2048, 55.2708, "Poor 😷"],
+
+        ["Beijing", 39.9042, 116.4074, "Very Poor 😷"],
+
+        ["Cape Town", -33.9249, 18.4241, "Good 🌿"]
+
+    ];
+
+
+    cities.forEach(function(city) {
+
+        L.marker([city[1], city[2]])
+            .addTo(map)
+            .bindPopup(
+                "<b>" + city[0] + "</b><br>" +
+                "AQI Status: " + city[3]
+            );
+
+    });
+
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,163 @@
+body {
+    margin: 0;
+    font-family: Arial;
+    text-align: center;
+    color: white;
+    overflow-x: hidden;
+}
+
+body.good {
+    background: linear-gradient(#4facfe, #00f2fe);
+}
+
+body.moderate {
+    background: linear-gradient(#f8b500, #fceabb);
+}
+
+body.poor {
+    background: linear-gradient(#ff7e5f, #feb47b);
+}
+
+body.severe {
+    background: linear-gradient(#e53935, #e35d5b);
+}
+
+/* ☁ CLOUDS */
+
+.cloud {
+    position: absolute;
+    width: 130px;
+    opacity: 0.8;
+}
+
+.cloud1 {
+    top: 50px;
+    animation: moveClouds 60s linear infinite;
+}
+
+.cloud2 {
+    top: 150px;
+    animation: moveClouds 90s linear infinite;
+}
+
+@keyframes moveClouds {
+
+    from {
+        left: -200px;
+    }
+
+    to {
+        left: 100%;
+    }
+}
+
+/* 🧊 CONTAINER */
+
+.container {
+
+    width: 90%;
+    max-width: 900px;
+
+    margin: 50px auto;
+
+    padding: 30px;
+
+    border-radius: 25px;
+
+    background: rgba(0,0,0,0.35);
+
+    backdrop-filter: blur(10px);
+}
+
+/* INPUT */
+
+input {
+
+    padding: 12px;
+
+    width: 70%;
+
+    border-radius: 10px;
+
+    border: none;
+}
+
+/* BUTTON */
+
+button {
+
+    padding: 12px 20px;
+
+    border: none;
+
+    border-radius: 10px;
+
+    background: #00c853;
+
+    color: white;
+
+    cursor: pointer;
+}
+
+/* MAP */
+
+#map {
+
+    height: 500px;
+
+    border-radius: 20px;
+
+    margin-top: 20px;
+}
+
+/* GRAPH */
+
+.graph {
+
+    width: 100%;
+
+    max-width: 500px;
+
+    border-radius: 15px;
+}
+
+/* ALERT */
+
+.alert {
+
+    background: rgba(255,255,255,0.2);
+
+    padding: 10px;
+
+    border-radius: 10px;
+
+    margin-top: 10px;
+}
+
+/* CHATBOX */
+
+.chatbox {
+
+    position: fixed;
+
+    bottom: 10px;
+
+    right: 10px;
+
+    width: 280px;
+
+    background: rgba(0,0,0,0.7);
+
+    padding: 15px;
+
+    border-radius: 15px;
+}
+
+#chatlog {
+
+    height: 150px;
+
+    overflow-y: auto;
+
+    text-align: left;
+}
