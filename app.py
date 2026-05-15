@@ -26,6 +26,7 @@ API_KEY = os.environ.get("OPENAI_API_KEY")
 def index():
 
     data = {}
+    city = ""
 
     if request.method == "POST":
 
@@ -37,14 +38,20 @@ def index():
             # GET LATITUDE & LONGITUDE
             # =====================================
 
-            geo_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={API_KEY}"
+            geo_url = (
+                f"http://api.openweathermap.org/geo/1.0/direct?"
+                f"q={city}&limit=1&appid={API_KEY}"
+            )
 
             geo_response = requests.get(geo_url).json()
 
             if not geo_response:
 
-                data["city"] = city
-                data["alert"] = "City not found."
+                data = {
+                    "city": city,
+                    "alert": "City not found.",
+                    "bg": "moderate"
+                }
 
                 return render_template(
                     "index.html",
@@ -58,7 +65,10 @@ def index():
             # GET AQI DATA
             # =====================================
 
-            aqi_url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat={lat}&lon={lon}&appid={API_KEY}"
+            aqi_url = (
+                f"http://api.openweathermap.org/data/2.5/air_pollution?"
+                f"lat={lat}&lon={lon}&appid={API_KEY}"
+            )
 
             aqi_response = requests.get(aqi_url).json()
 
@@ -69,11 +79,10 @@ def index():
             # =====================================
 
             pm25 = components.get("pm2_5", 0)
-
             pm10 = components.get("pm10", 0)
-
             no2 = components.get("no2", 0)
 
+            # CO scaled for model compatibility
             co = components.get("co", 0) / 100
 
             # =====================================
@@ -83,91 +92,84 @@ def index():
             api_aqi = aqi_response["list"][0]["main"]["aqi"]
 
             aqi_scale = {
-
                 1: 50,
                 2: 100,
                 3: 150,
                 4: 200,
                 5: 300
-
             }
 
             current_aqi = aqi_scale.get(api_aqi, 0)
 
             # =====================================
-            # ML PREDICTION
+            # MACHINE LEARNING PREDICTION
             # =====================================
 
             features = np.array([[pm25, pm10, no2, co]])
 
             prediction = model.predict(features)[0]
 
-            prediction = round(prediction, 2)
+            prediction = round(float(prediction), 2)
 
             # =====================================
-            # CATEGORY + ALERT
+            # AQI CATEGORY
             # =====================================
 
             if current_aqi <= 50:
 
                 category = "Good 🌿"
                 alert = "Air quality is good today."
-
                 bg = "good"
 
             elif current_aqi <= 100:
 
                 category = "Moderate 😐"
                 alert = "Air quality is acceptable today."
-
                 bg = "moderate"
 
             elif current_aqi <= 150:
 
                 category = "Poor 😷"
                 alert = "Sensitive people should avoid outdoor activities."
-
                 bg = "poor"
 
             elif current_aqi <= 200:
 
                 category = "Very Poor ⚠️"
                 alert = "Wear masks and limit outdoor exposure."
-
                 bg = "verypoor"
 
             else:
 
                 category = "Severe 🚨"
                 alert = "Avoid going outside today."
-
                 bg = "severe"
 
             # =====================================
-            # NEWS
+            # FAKE NEWS DATA
             # =====================================
 
             news = [
 
-                "Global pollution levels continue to rise.",
+                "WHO recommends monitoring AQI regularly.",
 
-                "WHO advises monitoring AQI regularly.",
+                "Governments are investing in smart environmental systems.",
 
-                "Governments are investing in smart environmental systems."
+                "Global air pollution remains a major concern."
 
             ]
 
             # =====================================
-            # STORE DATA
+            # FINAL DATA
             # =====================================
 
             data = {
 
                 "city": city,
 
-                "pm25": pm25,
-                "pm10": pm10,
-                "no2": no2,
+                "pm25": round(pm25, 2),
+                "pm10": round(pm10, 2),
+                "no2": round(no2, 2),
                 "co": round(co, 2),
 
                 "aqi": current_aqi,
@@ -189,7 +191,17 @@ def index():
 
         except Exception as e:
 
-            data["alert"] = f"Error: {str(e)}"
+            print("ERROR:", e)
+
+            data = {
+
+                "city": city,
+
+                "alert": f"Error occurred: {str(e)}",
+
+                "bg": "moderate"
+
+            }
 
     return render_template(
         "index.html",
@@ -197,7 +209,7 @@ def index():
     )
 
 # =====================================
-# CHATBOT
+# CHATBOT ROUTE
 # =====================================
 
 @app.route("/chat", methods=["POST"])
@@ -205,25 +217,35 @@ def chat():
 
     user_message = request.json.get("message")
 
-    response = ""
-
     msg = user_message.lower()
 
     if "aqi" in msg:
 
-        response = "AQI means Air Quality Index. Higher AQI means worse air quality."
+        response = (
+            "AQI stands for Air Quality Index. "
+            "Higher AQI means worse air quality."
+        )
 
     elif "pollution" in msg:
 
-        response = "Pollution can cause respiratory and health problems."
+        response = (
+            "Pollution can affect lungs, heart, "
+            "and overall health."
+        )
 
     elif "mask" in msg:
 
-        response = "Masks are recommended during high AQI conditions."
+        response = (
+            "Masks are recommended during poor "
+            "AQI conditions."
+        )
 
     else:
 
-        response = "Air quality awareness is important for environmental sustainability."
+        response = (
+            "Environmental awareness is important "
+            "for sustainability."
+        )
 
     return jsonify({
         "response": response
