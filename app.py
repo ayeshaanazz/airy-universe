@@ -1,183 +1,139 @@
-import os
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request
 import requests
 import joblib
-import matplotlib.pyplot as plt
+import numpy as np
+import os
 
 app = Flask(__name__)
 
-API_KEY = "18aad610cd7aaf807c3e6f370dcde421"
+# ==============================
+# LOAD MACHINE LEARNING MODEL
+# ==============================
 
-# Load ML model
 model = joblib.load("aqi_model.pkl")
 
+# ==============================
+# OPENWEATHER API KEY
+# ==============================
 
-# 🌍 Get coordinates
-def get_coordinates(city):
-    url = f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={API_KEY}"
-    data = requests.get(url).json()
-    return data[0]['lat'], data[0]['lon']
+API_KEY = os.environ.get("OPENAI_API_KEY")
 
+# ==============================
+# HOME ROUTE
+# ==============================
 
-# 🌫 Pollution data
-def get_pollution(lat, lon):
-    url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat={lat}&lon={lon}&appid={API_KEY}"
-    data = requests.get(url).json()
-    return data['list'][0]['components']
-
-
-# 📊 AQI Calculation
-def calculate_aqi(pm25):
-    if pm25 <= 30:
-        return int((pm25 / 30) * 50)
-    elif pm25 <= 60:
-        return int(50 + ((pm25 - 30) / 30) * 50)
-    else:
-        return int(100 + ((pm25 - 60) / 30) * 100)
-
-
-# 📈 AQI Graph
-def generate_graph():
-
-    values = [80, 95, 120, 150, 130, 170, 145]
-
-    plt.figure(figsize=(6,3))
-    plt.plot(values, marker='o')
-    plt.title("7-Day AQI Trend")
-    plt.xlabel("Days")
-    plt.ylabel("AQI")
-
-    plt.savefig("static/graph.png")
-    plt.close()
-
-
-# 🌿 AQI Category
-def get_category(aqi):
-
-    if aqi <= 50:
-        return "Good 🌿"
-
-    elif aqi <= 100:
-        return "Satisfactory 🙂"
-
-    elif aqi <= 200:
-        return "Moderate 😐"
-
-    else:
-        return "Poor 😷"
-
-
-# 🎨 Background
-def get_bg_color(aqi):
-
-    if aqi <= 50:
-        return "good"
-
-    elif aqi <= 100:
-        return "moderate"
-
-    elif aqi <= 200:
-        return "poor"
-
-    else:
-        return "severe"
-
-
-# 🤖 Smart Chatbot
-@app.route("/chat", methods=["POST"])
-def chat():
-
-    user_msg = request.json.get("message", "").lower()
-
-    if "aqi" in user_msg:
-        reply = "AQI measures how polluted the air is. Higher AQI can affect health."
-
-    elif "health" in user_msg:
-        reply = "Poor AQI may cause breathing problems, asthma, and heart issues."
-
-    elif "pollution" in user_msg:
-        reply = "Pollution mainly comes from vehicles, industries, and burning fossil fuels."
-
-    elif "trees" in user_msg:
-        reply = "Trees absorb carbon dioxide and improve air quality."
-
-    elif "environment" in user_msg:
-        reply = "Protect the environment by saving energy and reducing plastic use."
-
-    else:
-        reply = "Ask me about AQI, pollution, health, or environment 😊"
-
-    return jsonify({"response": reply})
-
-
-# 📰 News
-def get_news():
-
-    return [
-        "Delhi AQI rises due to pollution",
-        "Climate change affecting global air quality",
-        "WHO warns about rising urban pollution"
-    ]
-
-
-# 🌍 Main Route
 @app.route("/", methods=["GET", "POST"])
 def index():
 
-    generate_graph()
-
-    data = {"bg": "good"}
-
     if request.method == "POST":
 
-        city = request.form["city"]
+        city = request.form.get("city")
 
-        lat, lon = get_coordinates(city)
+        try:
 
-        pollution = get_pollution(lat, lon)
+            # ==============================
+            # GET LATITUDE & LONGITUDE
+            # ==============================
 
-        pm25 = pollution['pm2_5']
-        pm10 = pollution['pm10']
-        no2 = pollution['no2']
-        co = pollution['co']
+            geo_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={API_KEY}"
 
-        prediction = model.predict([[pm25, pm10, no2, co]])
-        predicted_aqi = int(prediction[0])
+            geo_response = requests.get(geo_url).json()
 
-        current_aqi = calculate_aqi(pm25)
+            if not geo_response:
+                return render_template(
+                    "index.html",
+                    error="City not found."
+                )
 
-        category = get_category(current_aqi)
+            lat = geo_response[0]["lat"]
+            lon = geo_response[0]["lon"]
 
-        bg = get_bg_color(current_aqi)
+            # ==============================
+            # GET AQI DATA
+            # ==============================
 
-        # 🔔 Pollution Alert
-        if current_aqi > 150:
-            alert = "⚠ Air quality is unhealthy today. Wear a mask outdoors."
+            aqi_url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat={lat}&lon={lon}&appid={API_KEY}"
 
-        else:
-            alert = "🌿 Air quality is acceptable today."
+            aqi_response = requests.get(aqi_url).json()
 
-        data = {
-            "city": city,
-            "pm25": pm25,
-            "aqi": current_aqi,
-            "category": category,
-            "prediction": predicted_aqi,
-            "bg": bg,
-            "news": get_news(),
-            "alert": alert
-        }
+            components = aqi_response["list"][0]["components"]
 
-    return render_template("index.html", data=data)
+            # ==============================
+            # POLLUTANTS
+            # ==============================
 
+            pm25 = components.get("pm2_5", 0)
+            pm10 = components.get("pm10", 0)
+            no2 = components.get("no2", 0)
+
+            # Convert CO scale for better ML compatibility
+            co = components.get("co", 0) / 100
+
+            # ==============================
+            # MACHINE LEARNING PREDICTION
+            # ==============================
+
+            features = np.array([[pm25, pm10, no2, co]])
+
+            predicted_aqi = model.predict(features)[0]
+
+            predicted_aqi = round(predicted_aqi, 2)
+
+            # ==============================
+            # AQI CATEGORY
+            # ==============================
+
+            if predicted_aqi <= 50:
+                category = "Good"
+                alert = "Air quality is good."
+
+            elif predicted_aqi <= 100:
+                category = "Moderate"
+                alert = "Air quality is acceptable."
+
+            elif predicted_aqi <= 150:
+                category = "Poor"
+                alert = "Sensitive people should avoid outdoor activities."
+
+            elif predicted_aqi <= 200:
+                category = "Very Poor"
+                alert = "Wear masks and limit outdoor exposure."
+
+            else:
+                category = "Severe"
+                alert = "Avoid going outside."
+
+            # ==============================
+            # RENDER RESULT
+            # ==============================
+
+            return render_template(
+                "index.html",
+                city=city,
+                pm25=pm25,
+                pm10=pm10,
+                no2=no2,
+                co=co,
+                predicted_aqi=predicted_aqi,
+                category=category,
+                alert=alert,
+                lat=lat,
+                lon=lon
+            )
+
+        except Exception as e:
+
+            return render_template(
+                "index.html",
+                error=f"Error occurred: {str(e)}"
+            )
+
+    return render_template("index.html")
+
+
+# ==============================
+# RUN APP
+# ==============================
 
 if __name__ == "__main__":
-    import os
-
-    port = int(os.environ.get("PORT", 10000))
-
-    app.run(
-        host="0.0.0.0",
-        port=port,
-        debug=False
-    )
+    app.run(debug=True, host="0.0.0.0", port=10000)
